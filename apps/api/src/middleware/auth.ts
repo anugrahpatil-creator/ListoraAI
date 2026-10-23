@@ -47,7 +47,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  *
  * Example: router.post('/approve', requireAuth, requireRole('OWNER'), handler);
  */
-export function requireRole(...allowedRoles: UserRole[]) {
+export function requireRole(...allowedRoles: (UserRole | 'OPERATOR' | 'ADMIN')[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
@@ -59,7 +59,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
     // Allow OWNER if allowedRoles includes OWNER or legacy OPERATOR/ADMIN
     const isAllowed =
       allowedRoles.includes(currentRole) ||
-      (currentRole === 'OWNER' && allowedRoles.some((r: any) => r === 'OPERATOR' || r === 'ADMIN' || r === 'OWNER'));
+      (currentRole === 'OWNER' && allowedRoles.some((r) => r === 'OPERATOR' || r === 'ADMIN' || r === 'OWNER'));
 
     if (!isAllowed) {
       res.status(403).json({

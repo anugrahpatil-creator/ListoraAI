@@ -130,7 +130,7 @@ describe('POST /auth/login — demo users', () => {
     expect(res.status).toBe(200);
     expect(res.body.user).toBeDefined();
     expect(res.body.user.email).toBe('operator@listora.ai');
-    expect(res.body.user.role).toBe('OPERATOR');
+    expect(res.body.user.role).toBe('OWNER');
     expect(res.headers['set-cookie']).toBeDefined();
   });
 
@@ -160,7 +160,7 @@ describe('GET /auth/me — with valid session', () => {
     const meRes = await request(app).get('/auth/me').set('Cookie', cookie);
     expect(meRes.status).toBe(200);
     expect(meRes.body.user.email).toBe('operator@listora.ai');
-    expect(meRes.body.user.role).toBe('OPERATOR');
+    expect(meRes.body.user.role).toBe('OWNER');
   });
 });
 

@@ -25,10 +25,10 @@ async function profileUpdateHandler(req: Request, res: Response, next: NextFunct
   }
 }
 
-// PUT /api/v1/profile — full or partial update (OPERATOR only)
-router.put('/', requireRole('OPERATOR'), validate({ body: ProfileUpdateSchema }), profileUpdateHandler);
+// PUT /api/v1/profile — full or partial update (OWNER only)
+router.put('/', requireRole('OWNER'), validate({ body: ProfileUpdateSchema }), profileUpdateHandler);
 
-// PATCH /api/v1/profile — partial update alias (OPERATOR only)
-router.patch('/', requireRole('OPERATOR'), validate({ body: ProfileUpdateSchema }), profileUpdateHandler);
+// PATCH /api/v1/profile — partial update alias (OWNER only)
+router.patch('/', requireRole('OWNER'), validate({ body: ProfileUpdateSchema }), profileUpdateHandler);
 
 export default router;

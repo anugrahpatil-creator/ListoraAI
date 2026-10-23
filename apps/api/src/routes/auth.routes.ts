@@ -84,7 +84,7 @@ router.post('/login', validate({ body: LoginSchema }), async (req, res, next) =>
       maxAge: 8 * 60 * 60 * 1000,
     });
 
-    await recordAudit('USER_LOGIN', user.role === 'OPERATOR' ? 'owner' : 'system', {
+    await recordAudit('USER_LOGIN', user.role === 'OWNER' ? 'owner' : 'viewer', {
       email: user.email,
       role: user.role,
     });
@@ -168,9 +168,9 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 /**
- * GET /auth/users — Operator only: list all registered and demo users
+ * GET /auth/users — Owner only: list all registered and demo users
  */
-router.get('/users', requireAuth, requireRole('OPERATOR'), async (_req, res, next) => {
+router.get('/users', requireAuth, requireRole('OWNER'), async (_req, res, next) => {
   try {
     const users = await listUsers();
     res.json(users);
@@ -182,16 +182,17 @@ router.get('/users', requireAuth, requireRole('OPERATOR'), async (_req, res, nex
 });
 
 /**
- * PATCH /auth/users/:id/role — Operator only: change a user's role
+ * PATCH /auth/users/:id/role — Owner only: change a user's role
  */
 router.patch(
   '/users/:id/role',
   requireAuth,
-  requireRole('OPERATOR'),
+  requireRole('OWNER'),
   validate({ body: UpdateRoleSchema }),
   async (req, res, next) => {
     try {
-      const { role } = req.body as z.infer<typeof UpdateRoleSchema>;
+      const { role: rawRole } = req.body as z.infer<typeof UpdateRoleSchema>;
+      const role: UserRole = rawRole === 'VIEWER' ? 'VIEWER' : 'OWNER';
       const updated = await updateUserRole(req.params.id, role);
       if (!updated) {
         res.status(404).json({ error: 'User not found' });
