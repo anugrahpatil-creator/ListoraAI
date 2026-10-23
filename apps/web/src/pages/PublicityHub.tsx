@@ -9,12 +9,8 @@ import {
   Share2,
   ExternalLink,
   ShieldCheck,
-  TrendingUp,
-  Download,
   Code2,
-  Users,
   CheckCircle2,
-  Building2,
   Eye,
 } from "lucide-react";
 import { fetchRatingSummary, type RatingSummary } from "../lib/api";
@@ -22,19 +18,17 @@ import { focus } from "../lib/styles";
 
 export default function PublicityHub() {
   const [summary, setSummary] = useState<RatingSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const [copiedCard, setCopiedCard] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<number | null>(null);
-  const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
     async function load() {
       try {
         const data = await fetchRatingSummary();
         setSummary(data);
-      } finally {
-        setLoading(false);
+      } catch {
+        // ignore
       }
     }
     load();
