@@ -14,6 +14,7 @@ import {
   LogOut,
   UserCheck,
   Eye,
+  Star,
   Award,
 } from "lucide-react";
 import * as Sidebar from "@animate-ui/react/primitives/sidebar";
@@ -35,18 +36,19 @@ const NAV: {
   { to: "/dashboard/approvals", label: "Approvals", icon: CheckSquare },
   { to: "/dashboard/report", label: "Report", icon: FileText },
   { to: "/dashboard/score", label: "Score", icon: Gauge },
-  { to: "/dashboard/publicity", label: "Publicity & Ratings", icon: Award },
+  { to: "/dashboard/ratings", label: "Ratings & Reputation", icon: Star },
+  { to: "/dashboard/publicity", label: "Publicity & Badges", icon: Award },
   { to: "/dashboard/audit", label: "Audit", icon: ScrollText },
   { to: "/dashboard/alerts", label: "Alerts", icon: BellRing },
   { to: "/dashboard/users", label: "Users & Roles", icon: UsersIcon },
 ];
 
 function RoleBadge({ role }: { role: UserRole }) {
-  if (role === "OPERATOR") {
+  if (role === "OWNER") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
         <UserCheck className="h-3 w-3" />
-        Operator
+        Owner
       </span>
     );
   }
@@ -103,7 +105,7 @@ function SidebarBody({ onNavigate, collapsed }: { onNavigate?: () => void; colla
     navigate("/login", { replace: true });
   };
 
-  const activeRole: UserRole = user?.role || "OPERATOR";
+  const activeRole: UserRole = user?.role || "OWNER";
 
   return (
     <>
@@ -239,7 +241,7 @@ function DesktopSidebar() {
 function ShellChrome() {
   const { toggleSidebar, isMobile, openMobile, open } = Sidebar.useSidebar();
   const { user } = useAuth();
-  const activeRole: UserRole = user?.role || "OPERATOR";
+  const activeRole: UserRole = user?.role || "OWNER";
   const isOpen = isMobile ? openMobile : open;
 
   return (

@@ -141,14 +141,74 @@ model Review {
   @@index([rating])
 }
 
+model PlatformReview {
+  id                  String          @id @default(uuid())
+  platform            String          // "mockMapsA" (Google Maps India) | "mockMapsB" (Mappls) | "mockDirectoryC" (Justdial)
+  externalReviewId    String?
+  authorName          String
+  rating              Float           // 1.0 - 5.0
+  reviewText          String
+  reviewDate          DateTime        @default(now())
+  sentiment           ReviewSentiment @default(NEUTRAL)
+  responseStatus      ResponseStatus  @default(UNANSWERED)
+  responseText        String?
+  responseDraft       String?
+  responseApproved    Boolean         @default(false)
+  responsePublishedAt DateTime?
+  suggestedAction     String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([platform])
+  @@index([rating])
+  @@index([sentiment])
+  @@index([responseStatus])
+}
+
+model ReputationInsight {
+  id                     String   @id @default(uuid())
+  title                  String
+  explanation            String
+  category               String   // "Service Quality" | "Waiting Time" | "Hours Accuracy" | "Staff Behavior" | "Pricing"
+  supportingReviewsCount Int
+  reviewReferences       Json?
+  recommendedAction      String
+  confidence             Float    @default(0.92)
+  createdAt              DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model ReputationSettings {
+  id                 String   @id @default("default-reputation-settings")
+  lowRatingThreshold Float    @default(3.0)
+  alertOnLowRating   Boolean  @default(true)
+  alertOnUnanswered  Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 
 enum UserRole {
-  ADMIN
+  OWNER
   OPERATOR
+  ADMIN
   VIEWER
+}
+
+enum ReviewSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum ResponseStatus {
+  UNANSWERED
+  ANSWERED
+  DRAFT
+  UNSUPPORTED
 }
 
 enum MismatchKind {
@@ -177,4 +237,5 @@ enum VerificationStatus {
   FAILED
   BLOCKED
 }
+
 

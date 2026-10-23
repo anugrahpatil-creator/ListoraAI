@@ -26,11 +26,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   try {
     const payload = jwt.verify(token, env.SESSION_SECRET) as SessionPayload;
+    const rawRole = (payload.role as string)?.toUpperCase();
+    const normalizedRole: UserRole = rawRole === 'VIEWER' ? 'VIEWER' : 'OWNER';
+
     req.user = {
       id: payload.id,
       email: payload.email,
       name: payload.name,
-      role: payload.role || 'OPERATOR',
+      role: normalizedRole,
     };
     next();
   } catch {
@@ -40,22 +43,29 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 /**
  * Enforces role-based access control.
- * Must be used after requireAuth.
+ * Mandatory 2-role system: OWNER (full authorized access) and VIEWER (read-only).
  *
- * Example: router.post('/approve', requireAuth, requireRole('OPERATOR'), handler);
+ * Example: router.post('/approve', requireAuth, requireRole('OWNER'), handler);
  */
-export function requireRole(...allowedRoles: UserRole[]) {
+export function requireRole(...allowedRoles: (UserRole | 'OPERATOR' | 'ADMIN')[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const currentRole: UserRole = req.user.role === 'VIEWER' ? 'VIEWER' : 'OWNER';
+
+    // Allow OWNER if allowedRoles includes OWNER or legacy OPERATOR/ADMIN
+    const isAllowed =
+      allowedRoles.includes(currentRole) ||
+      (currentRole === 'OWNER' && allowedRoles.some((r) => r === 'OPERATOR' || r === 'ADMIN' || r === 'OWNER'));
+
+    if (!isAllowed) {
       res.status(403).json({
-        error: `Forbidden: role '${req.user.role}' has insufficient permissions for this operation.`,
+        error: `Forbidden: role '${currentRole}' has read-only permissions and cannot perform this operation.`,
         requiredRoles: allowedRoles,
-        currentRole: req.user.role,
+        currentRole: currentRole,
       });
       return;
     }

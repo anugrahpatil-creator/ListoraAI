@@ -76,14 +76,15 @@ export const UPDATE_OUTCOMES = {
 export type UpdateOutcome = (typeof UPDATE_OUTCOME)[keyof typeof UPDATE_OUTCOME];
 export type UpdateOutcomeValue = (typeof UPDATE_OUTCOMES)[keyof typeof UPDATE_OUTCOMES];
 
-// Multi-user roles
+// Multi-user roles (strictly OWNER and VIEWER user-facing roles)
 export const USER_ROLES = {
-  ADMIN: 'ADMIN',
-  OPERATOR: 'OPERATOR',
+  OWNER: 'OWNER',
+  OPERATOR: 'OWNER',
+  ADMIN: 'OWNER',
   VIEWER: 'VIEWER',
 } as const;
 
-export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+export type UserRole = 'OWNER' | 'VIEWER';
 
 // Platform connection & synchronization statuses
 export const PLATFORM_CONNECTION_STATUS = {

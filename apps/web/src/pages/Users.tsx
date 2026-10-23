@@ -6,17 +6,17 @@ import { cn } from "../lib/cn";
 import { focus, muted } from "../lib/styles";
 
 const ROLE_CONFIG: Record<UserRole, { label: string; tone: string; icon: typeof UserCheck; desc: string }> = {
-  OPERATOR: {
-    label: "Operator",
+  OWNER: {
+    label: "Owner",
     tone: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     icon: UserCheck,
-    desc: "Review discrepancies, run AI investigator, approve/reject and push updates.",
+    desc: "Full workspace ownership: manage profile, run AI, approve/publish responses & configure alerts.",
   },
   VIEWER: {
     label: "Viewer",
     tone: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     icon: Eye,
-    desc: "Read-only access to consistency scores, reports, audit trails, and alerts.",
+    desc: "Read-only access to consistency scores, reputation monitoring, audit trails, and alerts.",
   },
 };
 
@@ -78,8 +78,8 @@ export default function Users() {
     }, 800);
   };
 
-  const activeRole = currentUser?.role || "OPERATOR";
-  const isOperator = activeRole === "OPERATOR";
+  const activeRole = currentUser?.role || "OWNER";
+  const isOwner = activeRole === "OWNER";
 
   return (
     <div className="space-y-6">
@@ -91,14 +91,14 @@ export default function Users() {
             Users & Role Management
           </h1>
           <p className={`mt-1 text-sm ${muted}`}>
-            Role-based access control (RBAC) governing profile edits, approvals, and system observability.
+            Role-based access control (RBAC) governing profile edits, approvals, reputation monitoring, and system observability.
           </p>
         </div>
 
         {/* Demo Role Switcher */}
         <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2 text-xs shadow-sm">
           <span className={`font-medium ${muted}`}>Switch Role:</span>
-          {(["OPERATOR", "VIEWER"] as UserRole[]).map((r) => (
+          {(["OWNER", "VIEWER"] as UserRole[]).map((r) => (
             <button
               key={r}
               type="button"
@@ -111,7 +111,7 @@ export default function Users() {
                 focus
               )}
             >
-              {r}
+              {r === "OWNER" ? "Owner" : "Viewer"}
             </button>
           ))}
         </div>
@@ -132,18 +132,20 @@ export default function Users() {
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--muted-foreground)]">
                 <th className="py-2.5 pr-4 font-medium">Capability</th>
-                <th className="py-2.5 px-4 font-medium text-amber-600 dark:text-amber-400">Operator</th>
+                <th className="py-2.5 px-4 font-medium text-amber-600 dark:text-amber-400">Owner</th>
                 <th className="py-2.5 px-4 font-medium text-blue-600 dark:text-blue-400">Viewer</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {[
-                { cap: "View Dashboard, Score, Reports & Audit Log", op: true, viewer: true },
-                { cap: "Review Mismatches & Run AI Investigator", op: true, viewer: false },
+                { cap: "View Dashboard, Score, Ratings, Reports & Audit Log", op: true, viewer: true },
+                { cap: "Search, Sort, and Filter Ratings & Reviews", op: true, viewer: true },
+                { cap: "Read AI Reputation Insights & Suggested Responses", op: true, viewer: true },
+                { cap: "Review Mismatches & Run AI Listing Investigator", op: true, viewer: false },
                 { cap: "Approve or Reject Sync Proposals", op: true, viewer: false },
-                { cap: "Apply Updates to Platforms & Run Verification", op: true, viewer: false },
-                { cap: "Edit Canonical Business Profile & Schedules", op: true, viewer: false },
-                { cap: "Manage Users & Assign Roles", op: true, viewer: false },
+                { cap: "Generate & Edit AI Review Responses", op: true, viewer: false },
+                { cap: "Publish Review Responses & Configure Alert Thresholds", op: true, viewer: false },
+                { cap: "Edit Canonical Business Profile & Manage Users", op: true, viewer: false },
               ].map((row, idx) => (
                 <tr key={idx} className="hover:bg-black/5 dark:hover:bg-white/[0.02]">
                   <td className="py-2.5 pr-4 font-medium text-[var(--foreground)]">{row.cap}</td>
@@ -162,7 +164,7 @@ export default function Users() {
           <div>
             <h2 className="text-base font-semibold">Active Workspace Users</h2>
             <p className={`text-xs ${muted}`}>
-              {isOperator ? "You can change user roles below." : "Viewing only (Operator required to alter user roles)."}
+              {isOwner ? "You can change user roles below." : "Viewing only (Owner role required to alter workspace user roles)."}
             </p>
           </div>
           {loading && <RefreshCw className="h-4 w-4 animate-spin text-neutral-400" />}
@@ -170,7 +172,7 @@ export default function Users() {
 
         <div className="divide-y divide-[var(--border)]">
           {users.map((u) => {
-            const config = ROLE_CONFIG[u.role] || ROLE_CONFIG.OPERATOR;
+            const config = ROLE_CONFIG[u.role] || ROLE_CONFIG.OWNER;
             const Icon = config.icon;
             const isMe = u.email === currentUser?.email;
 
@@ -182,9 +184,9 @@ export default function Users() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-neutral-200">{u.name || u.email}</span>
+                      <span className="text-sm font-medium text-[var(--foreground)]">{u.name || u.email}</span>
                       {isMe && (
-                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-neutral-400">You</span>
+                        <span className="rounded bg-black/10 dark:bg-white/10 px-1.5 py-0.5 text-[10px] text-neutral-400">You</span>
                       )}
                     </div>
                     <p className={`text-xs ${muted}`}>{u.email}</p>
@@ -194,17 +196,17 @@ export default function Users() {
 
                 {/* Role select dropdown / badge */}
                 <div className="flex items-center gap-2 pl-12 sm:pl-0">
-                  {isOperator ? (
+                  {isOwner ? (
                     <select
                       value={u.role}
                       onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
                       className={cn(
-                        "rounded-lg border border-[var(--border)] bg-black/60 px-3 py-1.5 text-xs font-medium text-neutral-200 outline-none transition-colors",
+                        "rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] outline-none transition-colors",
                         focus
                       )}
                     >
-                      <option value="OPERATOR">Operator (Approvals & Sync)</option>
-                      <option value="VIEWER">Viewer (Read-Only)</option>
+                      <option value="OWNER">Owner (Full Management)</option>
+                      <option value="VIEWER">Viewer (Read-Only Monitoring)</option>
                     </select>
                   ) : (
                     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium", config.tone)}>

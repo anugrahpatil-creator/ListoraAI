@@ -13,7 +13,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [role, setRole] = useState<UserRole>("OPERATOR");
+  const [role, setRole] = useState<UserRole>("OWNER");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -103,16 +103,16 @@ export default function Register() {
           <div className="grid grid-cols-2 gap-2 mt-1">
             <button
               type="button"
-              onClick={() => setRole("OPERATOR")}
+              onClick={() => setRole("OWNER")}
               className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2 text-xs transition-colors ${
-                role === "OPERATOR"
+                role === "OWNER"
                   ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 shadow-sm"
                   : "border-[var(--border)] bg-slate-50 dark:bg-white/5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               <UserCheck className="h-4 w-4" />
-              <span className="font-medium">Operator</span>
-              <span className="text-[10px] opacity-70">Approve & Sync</span>
+              <span className="font-medium">Owner</span>
+              <span className="text-[10px] opacity-70">Full Management</span>
             </button>
             <button
               type="button"
@@ -175,8 +175,8 @@ export default function Register() {
         </button>
 
         <p className={`text-xs leading-relaxed text-center ${muted}`}>
-          Role permissions: <span className="text-amber-400 font-medium">Operator</span> (manage profile, approvals & sync),{" "}
-          <span className="text-blue-400 font-medium">Viewer</span> (read-only audit & reports).
+          Role permissions: <span className="text-amber-400 font-medium">Owner</span> (manage profile, approvals, AI responses & sync),{" "}
+          <span className="text-blue-400 font-medium">Viewer</span> (read-only audit, reports & reputation monitoring).
         </p>
       </form>
     </AuthShell>

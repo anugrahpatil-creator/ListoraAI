@@ -14,6 +14,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Users from "./pages/Users";
+import RatingsReputation from "./pages/RatingsReputation";
 import PublicRating from "./pages/PublicRating";
 import PublicityHub from "./pages/PublicityHub";
 import EmbedBadge from "./pages/EmbedBadge";
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="approvals" element={<Approvals />} />
           <Route path="report" element={<Report />} />
           <Route path="score" element={<Score />} />
+          <Route path="ratings" element={<RatingsReputation />} />
           <Route path="publicity" element={<PublicityHub />} />
           <Route path="audit" element={<Audit />} />
           <Route path="alerts" element={<Alerts />} />

@@ -33,8 +33,8 @@ export default function Login() {
   }
 
   function fillDemo(role: UserRole) {
-    if (role === "OPERATOR") {
-      setEmail("operator@listora.ai");
+    if (role === "OWNER") {
+      setEmail("owner@listora.ai");
       setPassword("password123");
     } else {
       setEmail("viewer@listora.ai");
@@ -45,7 +45,7 @@ export default function Login() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to review mismatches and approve listing updates."
+      subtitle="Sign in to review mismatches, monitor ratings, and manage business consistency."
       footer={
         <>
           New here?{" "}
@@ -103,11 +103,11 @@ export default function Login() {
           <div className="grid grid-cols-2 gap-1.5 text-xs">
             <button
               type="button"
-              onClick={() => fillDemo("OPERATOR")}
+              onClick={() => fillDemo("OWNER")}
               className="flex items-center justify-center gap-1.5 rounded border border-[var(--border)] bg-white dark:bg-white/5 py-1.5 px-2 hover:bg-black/5 dark:hover:bg-white/15 transition-colors text-[var(--foreground)] shadow-xs"
             >
               <UserCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              <span>Operator</span>
+              <span>Owner</span>
             </button>
             <button
               type="button"

@@ -242,30 +242,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Top-Rated Publicity Callout Banner */}
+      {/* Section 3.F Compact Ratings Summary Card */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500 text-white font-bold text-sm shadow-sm">
-            ★ 4.9
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500 text-white font-extrabold text-sm shadow-sm">
+            ★ 4.7
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
-              Top-Rated Verified Publicity Active
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                Customer Ratings & Reputation Summary
+              </h3>
               <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                Elite Gold
+                Improving (+0.2)
               </span>
-            </h3>
+            </div>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Viewers gave your business a 4.9 / 5.0 rating on Google Maps & Justdial. Your shareable marketing assets and embed badges are live.
+              Overall rating: <strong className="text-[var(--foreground)]">4.7 / 5.0</strong> across 304 reviews on Google Maps, Mappls & Justdial · <span className="text-rose-500 font-semibold">2 low-rating alerts</span>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            to="/dashboard/publicity"
-            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+            to="/dashboard/ratings"
+            className="rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
           >
-            Publicity Hub ➔
+            Ratings & Reputation ➔
           </Link>
           <Link
             to="/rate"

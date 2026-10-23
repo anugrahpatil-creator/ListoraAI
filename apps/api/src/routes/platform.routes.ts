@@ -34,8 +34,8 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/platforms/:id/connect — Configure/connect a platform (OPERATOR only)
-router.post('/:id/connect', requireAuth, requireRole('OPERATOR'), async (req, res, next) => {
+// POST /api/v1/platforms/:id/connect — Configure/connect a platform (OWNER only)
+router.post('/:id/connect', requireAuth, requireRole('OWNER'), async (req, res, next) => {
   try {
     const payload = req.body as ConnectPayload;
     const result = await updatePlatformConnection(req.params.id, payload);
@@ -55,8 +55,8 @@ router.post('/:id/test', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /api/v1/platforms/:id/disconnect — Disconnect a platform (OPERATOR only)
-router.post('/:id/disconnect', requireAuth, requireRole('OPERATOR'), async (req, res, next) => {
+// POST /api/v1/platforms/:id/disconnect — Disconnect a platform (OWNER only)
+router.post('/:id/disconnect', requireAuth, requireRole('OWNER'), async (req, res, next) => {
   try {
     const result = await updatePlatformConnection(req.params.id, { mode: 'DISCONNECT' });
     res.json(result);

@@ -17,13 +17,33 @@ export type SystemAlert = {
 
 const INITIAL_ALERTS: SystemAlert[] = [
   {
+    id: "alt-rep-1",
+    tone: "warn",
+    title: "Low customer rating alert: 2-star review on Google Maps",
+    description: "Reviewer Neha Verma reported a 35-minute wait time during Sunday rush hour. Rating fell below configured threshold (3.0 stars).",
+    targetLink: "/dashboard/ratings",
+    linkLabel: "Review & respond",
+    createdAt: "18 mins ago",
+    read: false,
+  },
+  {
+    id: "alt-rep-2",
+    tone: "warn",
+    title: "Confirmed unanswered negative review on Mappls",
+    description: "Karthik Raja posted a 2-star review regarding pour-over pricing and entrance seating. Unanswered for > 48 hours.",
+    targetLink: "/dashboard/ratings",
+    linkLabel: "Draft AI response",
+    createdAt: "35 mins ago",
+    read: false,
+  },
+  {
     id: "alt-1",
     tone: "blocked",
     title: "Mappls (MapmyIndia) read-only partner restriction",
     description: "Write access restricted: Partner API tier on Mappls (MapmyIndia) is read-only. Updates require verified partner credentials or manual portal verification.",
     targetLink: "/dashboard/report",
     linkLabel: "View report",
-    createdAt: "12 mins ago",
+    createdAt: "1 hour ago",
     read: false,
   },
   {
@@ -33,7 +53,7 @@ const INITIAL_ALERTS: SystemAlert[] = [
     description: "3 discrepancies between canonical profile and live listings require explicit owner approval prior to dispatch.",
     targetLink: "/dashboard/approvals",
     linkLabel: "Review proposals",
-    createdAt: "45 mins ago",
+    createdAt: "2 hours ago",
     read: false,
   },
   {
@@ -43,7 +63,7 @@ const INITIAL_ALERTS: SystemAlert[] = [
     description: "Republic Day (2026-01-26) operating status conflicts with your approved profile (Open Jan 26 vs Closed).",
     targetLink: "/dashboard/approvals",
     linkLabel: "Inspect conflict",
-    createdAt: "2 hours ago",
+    createdAt: "3 hours ago",
     read: false,
   },
   {

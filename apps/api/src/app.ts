@@ -21,8 +21,7 @@ import verifyRouter from './routes/verify.routes';
 import scoreRouter from './routes/score.routes';
 import auditRouter from './routes/audit.routes';
 import alertsRouter from './routes/alerts.routes';
-import ratingsRouter from './routes/ratings.routes';
-import platformRouter from './routes/platform.routes';
+
 
 export function createApp() {
   const app = express();
@@ -48,6 +47,7 @@ export function createApp() {
   app.use('/api/v1/audit', requireAuth, auditRouter);
   app.use('/api/v1/alerts', requireAuth, alertsRouter);
   app.use('/api/v1/platforms', requireAuth, platformRouter);
+  app.use('/api/v1/reputation', reputationRouter);
 
   // --- Centralized error handler (must be last) ---
   app.use(errorHandler);

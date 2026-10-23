@@ -17,11 +17,19 @@ export interface UserSummary {
 
 // In-memory demo users for fast testing / prototype demo mode
 const DEMO_USERS: Record<string, { id: string; email: string; name: string; role: UserRole; passwordHash: string }> = {
+  'owner@listora.ai': {
+    id: 'user-owner-demo',
+    email: 'owner@listora.ai',
+    name: 'Business Owner',
+    role: 'OWNER',
+    // Hash for 'password123'
+    passwordHash: '$2a$10$w3qgQ68v1r/tHkJ2LwL1re7Q1EcvB/4vV/GjQW729hL9tZvxEGyve',
+  },
   'operator@listora.ai': {
-    id: 'user-operator-demo',
+    id: 'user-owner-demo',
     email: 'operator@listora.ai',
-    name: 'Operator User',
-    role: 'OPERATOR',
+    name: 'Business Owner',
+    role: 'OWNER',
     // Hash for 'password123'
     passwordHash: '$2a$10$w3qgQ68v1r/tHkJ2LwL1re7Q1EcvB/4vV/GjQW729hL9tZvxEGyve',
   },
@@ -67,7 +75,7 @@ export async function findUserByEmail(email: string) {
       id: 'owner-env-user',
       email: env.OWNER_EMAIL,
       name: 'Business Owner',
-      role: 'OPERATOR' as UserRole,
+      role: 'OWNER' as UserRole,
       passwordHash: env.OWNER_PASSWORD_HASH,
     };
   }
@@ -83,7 +91,7 @@ export async function createUser(data: {
   role?: UserRole;
 }) {
   const normalized = data.email.toLowerCase().trim();
-  const role: UserRole = data.role || 'OPERATOR';
+  const role: UserRole = data.role === 'VIEWER' ? 'VIEWER' : 'OWNER';
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
   try {
@@ -92,7 +100,7 @@ export async function createUser(data: {
         email: normalized,
         name: data.name?.trim() || null,
         password: hashedPassword,
-        role,
+        role: role as any,
       },
     });
 
@@ -100,7 +108,7 @@ export async function createUser(data: {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role as UserRole,
+      role: ((user.role as string)?.toUpperCase() === 'VIEWER' ? 'VIEWER' : 'OWNER') as UserRole,
       createdAt: user.createdAt.toISOString(),
     };
   } catch {

@@ -11,8 +11,8 @@ describe('Role-Based Access Control (RBAC)', () => {
   });
 
   it('allows access when user has the required role', () => {
-    const middleware = requireRole('OPERATOR');
-    const req = { user: { email: 'operator@listora.ai', role: 'OPERATOR' } } as Request;
+    const middleware = requireRole('OWNER');
+    const req = { user: { email: 'owner@listora.ai', role: 'OWNER' } } as Request;
     const res = {} as Response;
     const next = vi.fn() as unknown as NextFunction;
 
@@ -21,7 +21,7 @@ describe('Role-Based Access Control (RBAC)', () => {
   });
 
   it('rejects access with 403 when user lacks the required role', () => {
-    const middleware = requireRole('OPERATOR');
+    const middleware = requireRole('OWNER');
     const req = { user: { email: 'viewer@listora.ai', role: 'VIEWER' } } as Request;
     const jsonMock = vi.fn();
     const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
@@ -33,15 +33,15 @@ describe('Role-Based Access Control (RBAC)', () => {
     expect(statusMock).toHaveBeenCalledWith(403);
     expect(jsonMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.stringContaining("role 'VIEWER' has insufficient permissions"),
+        error: expect.stringContaining("role 'VIEWER' has read-only permissions"),
       }),
     );
   });
 
   it('retrieves default demo accounts with respective roles', async () => {
-    const operator = await findUserByEmail('operator@listora.ai');
-    expect(operator).not.toBeNull();
-    expect(operator?.role).toBe('OPERATOR');
+    const owner = await findUserByEmail('owner@listora.ai');
+    expect(owner).not.toBeNull();
+    expect(owner?.role).toBe('OWNER');
 
     const viewer = await findUserByEmail('viewer@listora.ai');
     expect(viewer).not.toBeNull();
@@ -52,7 +52,7 @@ describe('Role-Based Access Control (RBAC)', () => {
     const users = await listUsers();
     expect(users.length).toBeGreaterThanOrEqual(2);
     const roles = users.map((u) => u.role);
-    expect(roles).toContain('OPERATOR');
+    expect(roles).toContain('OWNER');
     expect(roles).toContain('VIEWER');
     expect(roles).not.toContain('ADMIN');
   });
