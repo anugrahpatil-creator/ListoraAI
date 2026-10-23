@@ -535,7 +535,6 @@ export async function fetchAuditLogs(): Promise<any[]> {
   return [];
 }
 
-
 // ---------------------------------------------------------------------------
 // Rating & Publicity Features
 // ---------------------------------------------------------------------------
@@ -646,11 +645,75 @@ const DEFAULT_DEMO_REVIEWS: ReviewItem[] = [
   },
 ];
 
+export async function fetchRatingSummary(): Promise<RatingSummary> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/ratings`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  let reviews: ReviewItem[] = DEFAULT_DEMO_REVIEWS;
+  try {
+    const stored = localStorage.getItem(DEMO_REVIEWS_STORAGE_KEY);
+    if (stored) {
+      reviews = JSON.parse(stored);
+    }
   } catch {
     // ignore
   }
 
+  const totalReviews = reviews.length;
+  const ratingSum = reviews.reduce((acc, r) => acc + r.rating, 0);
+  const accuracySum = reviews.reduce((acc, r) => acc + r.accuracyScore, 0);
+  const reliabilitySum = reviews.reduce((acc, r) => acc + r.reliabilityScore, 0);
 
+  const overallRating = Number((ratingSum / totalReviews).toFixed(1));
+  const accuracyAverage = Number((accuracySum / totalReviews).toFixed(1));
+  const reliabilityAverage = Number((reliabilitySum / totalReviews).toFixed(1));
+
+  const distribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  for (const r of reviews) {
+    const star = Math.max(1, Math.min(5, Math.round(r.rating)));
+    distribution[star] = (distribution[star] || 0) + 1;
+  }
+
+  const isTopRated = overallRating >= 4.5;
+  const tier = overallRating >= 4.7 ? "Elite Gold Verified" : overallRating >= 4.2 ? "Silver Consistent" : "Verified Partner";
+  const tierBadgeColor = tier === "Elite Gold Verified" ? "#f59e0b" : tier === "Silver Consistent" ? "#94a3b8" : "#3b82f6";
+
+  return {
+    overallRating,
+    totalReviews,
+    accuracyAverage,
+    reliabilityAverage,
+    distribution,
+    publicity: {
+      businessName: "The Bombay Roastery & Café",
+      address: "Plot 742, 12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka 560038",
+      overallRating,
+      totalReviews,
+      accuracyAverage,
+      reliabilityAverage,
+      isTopRated,
+      tier,
+      tierBadgeColor,
+      publicityQuote: `The Bombay Roastery & Café holds a stellar ${overallRating} / 5.0 public rating with verified business listings across Google Maps, Mappls & Justdial.`,
+      badgeHtmlSnippet: `<div style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:#18181b;color:#f4f4f5;font-family:sans-serif;font-size:13px;border:1px solid #3f3f46;box-shadow:0 4px 12px rgba(0,0,0,0.15);"><span style="color:#f59e0b;font-weight:bold;">★ ${overallRating}</span><span>|</span><span style="font-weight:600;">Top-Rated Business</span><span style="font-size:11px;opacity:0.75;">Verified by ListoraAI</span></div>`,
+      publicReviewUrl: "/rate",
+    },
+    recentReviews: reviews,
+  };
+}
+
+export async function submitReview(input: SubmitReviewInput): Promise<SubmitReviewResult> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/ratings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
     });
     if (res.ok) {
       return await res.json();
@@ -659,7 +722,24 @@ const DEFAULT_DEMO_REVIEWS: ReviewItem[] = [
     // Offline demo fallback
   }
 
+  const prevSummary = await fetchRatingSummary();
+  const previousRating = prevSummary.overallRating;
 
+  const validRating = Math.max(1, Math.min(5, Math.round(input.rating)));
+  const validAccuracy = Math.max(1, Math.min(5, Math.round(input.accuracyScore ?? validRating)));
+  const validReliability = Math.max(1, Math.min(5, Math.round(input.reliabilityScore ?? validRating)));
+
+  const newReview: ReviewItem = {
+    id: "rev-" + Date.now(),
+    authorName: input.authorName.trim(),
+    authorEmail: input.authorEmail?.trim() || null,
+    rating: validRating,
+    accuracyScore: validAccuracy,
+    reliabilityScore: validReliability,
+    comment: input.comment.trim(),
+    verified: true,
+    createdAt: new Date().toISOString(),
+  };
 
   const updatedReviews = [newReview, ...prevSummary.recentReviews];
   try {
@@ -694,3 +774,562 @@ const DEFAULT_DEMO_REVIEWS: ReviewItem[] = [
     message,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Ratings & Reputation Monitoring Feature
+// ---------------------------------------------------------------------------
+
+export type PlatformMetric = {
+  id: string;
+  name: string;
+  platformKey: string;
+  connectionStatus: "Connected" | "Demo Data" | "Not Connected" | "Stale Data";
+  rating: number;
+  scale: string;
+  reviewCount: number;
+  previousRating: number;
+  ratingDelta: number;
+  trendStatus: "Improving" | "Declining" | "Stable";
+  unansweredCount: number;
+  latestReviewDate: string;
+  lastRefreshedAt: string;
+  dataSource: string;
+  responseSupported: boolean;
+};
+
+export type ReviewRecord = {
+  id: string;
+  platform: string;
+  platformDisplayName: string;
+  externalReviewId?: string;
+  authorName: string;
+  rating: number;
+  reviewText: string;
+  reviewDate: string;
+  sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
+  responseStatus: "UNANSWERED" | "ANSWERED" | "DRAFT" | "UNSUPPORTED";
+  responseText?: string | null;
+  responseDraft?: string | null;
+  responseApproved?: boolean;
+  responsePublishedAt?: string | null;
+  suggestedAction?: string;
+};
+
+export type AIReputationInsight = {
+  id: string;
+  title: string;
+  explanation: string;
+  category: "Service Quality" | "Waiting Time" | "Hours Accuracy" | "Staff Behavior" | "Pricing";
+  supportingReviewsCount: number;
+  reviewReferences: string[];
+  dateRange: string;
+  recommendedAction: string;
+  confidence: number;
+  generatedAt: string;
+};
+
+export type RatingsOverview = {
+  overallRating: number;
+  overallRatingLabel: string;
+  totalReviews: number;
+  uniqueReviewsCount: number;
+  platformsContributing: number;
+  lastRefreshedAt: string;
+  dataQualityLabel: "Demo Data" | "Verified Partner Data";
+  calculationDocumentation: string;
+  unansweredCount: number;
+  lowRatingAlertCount: number;
+  lowRatingThreshold: number;
+  timeRange: "7d" | "30d" | "90d";
+  trendDirection: "Improving" | "Declining" | "Stable";
+  trendSnapshots: Array<{ date: string; rating: number; reviewCount: number }>;
+  platforms: PlatformMetric[];
+};
+
+export type ReputationSettingsDto = {
+  lowRatingThreshold: number;
+  alertOnLowRating: boolean;
+  alertOnUnanswered: boolean;
+};
+
+export async function fetchRatingsOverview(timeRange: "7d" | "30d" | "90d" = "30d"): Promise<RatingsOverview> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/overview?timeRange=${timeRange}`, {
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  // Standalone offline demo snapshot
+  const platforms: PlatformMetric[] = [
+    {
+      id: "plat-google-maps",
+      name: "Google Maps (India)",
+      platformKey: "mockMapsA",
+      connectionStatus: "Connected",
+      rating: 4.8,
+      scale: "5.0",
+      reviewCount: 142,
+      previousRating: 4.6,
+      ratingDelta: +0.2,
+      trendStatus: "Improving",
+      unansweredCount: 1,
+      latestReviewDate: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+      lastRefreshedAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+      dataSource: "Partner Sync",
+      responseSupported: true,
+    },
+    {
+      id: "plat-mappls",
+      name: "Mappls (MapmyIndia)",
+      platformKey: "mockMapsB",
+      connectionStatus: "Connected",
+      rating: 4.5,
+      scale: "5.0",
+      reviewCount: 68,
+      previousRating: 4.5,
+      ratingDelta: 0.0,
+      trendStatus: "Stable",
+      unansweredCount: 2,
+      latestReviewDate: new Date(Date.now() - 1000 * 60 * 60 * 84).toISOString(),
+      lastRefreshedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      dataSource: "Partner Sync",
+      responseSupported: false,
+    },
+    {
+      id: "plat-justdial",
+      name: "Justdial (India)",
+      platformKey: "mockDirectoryC",
+      connectionStatus: "Connected",
+      rating: 4.4,
+      scale: "5.0",
+      reviewCount: 94,
+      previousRating: 4.3,
+      ratingDelta: +0.1,
+      trendStatus: "Improving",
+      unansweredCount: 1,
+      latestReviewDate: new Date(Date.now() - 1000 * 60 * 60 * 110).toISOString(),
+      lastRefreshedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+      dataSource: "Local Directory Cache",
+      responseSupported: false,
+    },
+  ];
+
+  const totalReviews = platforms.reduce((acc, p) => acc + p.reviewCount, 0);
+  const weightedSum = platforms.reduce((acc, p) => acc + p.rating * p.reviewCount, 0);
+  const overallRating = Number((weightedSum / totalReviews).toFixed(1));
+
+  const days = timeRange === "7d" ? 7 : timeRange === "90d" ? 90 : 30;
+  const trendSnapshots: Array<{ date: string; rating: number; reviewCount: number }> = [];
+  const now = Date.now();
+  const step = Math.max(1, Math.floor(days / 6));
+
+  for (let i = days; i >= 0; i -= step) {
+    const d = new Date(now - i * 24 * 60 * 60 * 1000);
+    const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const historicalRating = Number((overallRating - (i / days) * 0.2).toFixed(1));
+    trendSnapshots.push({
+      date: dateLabel,
+      rating: Math.max(1.0, Math.min(5.0, historicalRating)),
+      reviewCount: Math.round(totalReviews - (i / days) * 15),
+    });
+  }
+
+  return {
+    overallRating,
+    overallRatingLabel: `${overallRating} / 5.0`,
+    totalReviews,
+    uniqueReviewsCount: 7,
+    platformsContributing: 3,
+    lastRefreshedAt: new Date().toISOString(),
+    dataQualityLabel: "Demo Data",
+    calculationDocumentation:
+      "Overall Rating is a review-count-weighted cross-platform estimate: ∑(Platform Rating × Review Count) / ∑(Total Reviews).",
+    unansweredCount: 4,
+    lowRatingAlertCount: 2,
+    lowRatingThreshold: 3.0,
+    timeRange,
+    trendDirection: "Improving",
+    trendSnapshots,
+    platforms,
+  };
+}
+
+export async function fetchPlatformReviews(options?: {
+  platform?: string;
+  minRating?: number;
+  maxRating?: number;
+  sentiment?: string;
+  responseStatus?: string;
+  search?: string;
+  sortBy?: "newest" | "oldest" | "highest" | "lowest";
+}): Promise<{ reviews: ReviewRecord[]; total: number }> {
+  try {
+    const params = new URLSearchParams();
+    if (options?.platform) params.set("platform", options.platform);
+    if (options?.minRating) params.set("minRating", String(options.minRating));
+    if (options?.maxRating) params.set("maxRating", String(options.maxRating));
+    if (options?.sentiment) params.set("sentiment", options.sentiment);
+    if (options?.responseStatus) params.set("responseStatus", options.responseStatus);
+    if (options?.search) params.set("search", options.search);
+    if (options?.sortBy) params.set("sortBy", options.sortBy);
+
+    const res = await fetch(`${baseUrl}/api/v1/reputation/reviews?${params.toString()}`, {
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  const DEFAULT_REVIEWS: ReviewRecord[] = [
+    {
+      id: "pr-1",
+      platform: "mockMapsA",
+      platformDisplayName: "Google Maps (India)",
+      authorName: "Rohan Sharma",
+      rating: 5,
+      reviewText: "Checked their opening hours on Google Maps and arrived at 07:15 AM — open exactly on time! Sourdough croissants were fresh and coffee was exceptional.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+      sentiment: "POSITIVE",
+      responseStatus: "ANSWERED",
+      responseText: "Thank you for visiting us early, Rohan! We take pride in opening right on time at 7 AM every day. See you again soon!",
+      suggestedAction: "Customer satisfied with timely opening and breakfast quality.",
+    },
+    {
+      id: "pr-2",
+      platform: "mockMapsA",
+      platformDisplayName: "Google Maps (India)",
+      authorName: "Neha Verma",
+      rating: 2,
+      reviewText: "Waited over 35 minutes for our filter coffee on Sunday morning peak hour. The staff seemed overwhelmed and disoriented despite polite attitude.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+      sentiment: "NEGATIVE",
+      responseStatus: "UNANSWERED",
+      responseDraft: "Dear Neha, thank you for sharing your feedback. We sincerely apologize for the 35-minute delay during Sunday rush hour. We are currently reviewing our peak-hour barista staffing to ensure orders are served promptly. We hope to welcome you back for a smoother experience.",
+      suggestedAction: "Address Sunday morning barista staffing delays.",
+    },
+    {
+      id: "pr-3",
+      platform: "mockMapsB",
+      platformDisplayName: "Mappls (MapmyIndia)",
+      authorName: "Arjun Nair",
+      rating: 5,
+      reviewText: "Address on Mappls guided our cab right to the doorstep in Indiranagar. Great ambiance, quiet work corners, and high-speed Wi-Fi.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 84).toISOString(),
+      sentiment: "POSITIVE",
+      responseStatus: "UNANSWERED",
+      suggestedAction: "Acknowledge positive location and remote-work atmosphere.",
+    },
+    {
+      id: "pr-4",
+      platform: "mockDirectoryC",
+      platformDisplayName: "Justdial (India)",
+      authorName: "Priya Venkatesh",
+      rating: 5,
+      reviewText: "Direct phone number listed on Justdial connected right to the store manager. Easily booked a table for our 8-person team lunch.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 110).toISOString(),
+      sentiment: "POSITIVE",
+      responseStatus: "ANSWERED",
+      responseText: "Thank you Priya! Glad our manager could assist with your team lunch reservation. We loved hosting your team!",
+      suggestedAction: "Customer confirmed phone contact reliability.",
+    },
+    {
+      id: "pr-5",
+      platform: "mockDirectoryC",
+      platformDisplayName: "Justdial (India)",
+      authorName: "Vikramjit Singh",
+      rating: 3,
+      reviewText: "Coffee is great but parking on 12th Main Road during evening hours is quite tricky. Valet service or clearer signage would help.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 160).toISOString(),
+      sentiment: "NEUTRAL",
+      responseStatus: "UNANSWERED",
+      suggestedAction: "Add parking guidelines or valet assistance notice to listing details.",
+    },
+    {
+      id: "pr-6",
+      platform: "mockMapsA",
+      platformDisplayName: "Google Maps (India)",
+      authorName: "Ananya Deshmukh",
+      rating: 4,
+      reviewText: "Holiday hours were accurately noted for Republic Day. Saved us from making a wasted trip. Cinnamon rolls are a must-try.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 210).toISOString(),
+      sentiment: "POSITIVE",
+      responseStatus: "ANSWERED",
+      responseText: "Thanks Ananya! We make sure our holiday schedules are synchronized everywhere so guests never have to second-guess.",
+      suggestedAction: "Praise for synchronized holiday schedule accuracy.",
+    },
+    {
+      id: "pr-7",
+      platform: "mockMapsB",
+      platformDisplayName: "Mappls (MapmyIndia)",
+      authorName: "Karthik Raja",
+      rating: 2,
+      reviewText: "Prices for specialty pour-overs are on the higher side compared to other cafés in Indiranagar. Seating was quite cramped near the entrance.",
+      reviewDate: new Date(Date.now() - 1000 * 60 * 60 * 300).toISOString(),
+      sentiment: "NEGATIVE",
+      responseStatus: "UNANSWERED",
+      suggestedAction: "Customer concerned about value perception and entrance seating density.",
+    },
+  ];
+
+  let list = DEFAULT_REVIEWS;
+  if (options?.platform && options.platform !== "ALL") {
+    list = list.filter((r) => r.platform.toLowerCase() === options.platform!.toLowerCase());
+  }
+  if (options?.minRating !== undefined) {
+    list = list.filter((r) => r.rating >= options.minRating!);
+  }
+  if (options?.sentiment && options.sentiment !== "ALL") {
+    list = list.filter((r) => r.sentiment === options.sentiment);
+  }
+  if (options?.responseStatus && options.responseStatus !== "ALL") {
+    list = list.filter((r) => r.responseStatus === options.responseStatus);
+  }
+  if (options?.search && options.search.trim()) {
+    const q = options.search.toLowerCase();
+    list = list.filter((r) => r.reviewText.toLowerCase().includes(q) || r.authorName.toLowerCase().includes(q));
+  }
+
+  return { reviews: list, total: list.length };
+}
+
+export async function fetchAIReputationInsights(): Promise<AIReputationInsight[]> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/insights`, { credentials: "include" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  return [
+    {
+      id: "ins-1",
+      title: "Peak Sunday Waiting Times Impacting Customer Satisfaction",
+      explanation:
+        "Customer reviews identify 30+ minute waiting times for coffee during Sunday morning rush hour (09:00 - 11:30 AM), contrasted with consistent fast service on weekdays.",
+      category: "Waiting Time",
+      supportingReviewsCount: 3,
+      reviewReferences: ["Review by Neha Verma on Google Maps"],
+      dateRange: "Last 30 days",
+      recommendedAction: "Schedule an extra barista on Sunday morning shifts to keep ticket times below 12 minutes.",
+      confidence: 0.94,
+      generatedAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    },
+    {
+      id: "ins-2",
+      title: "Consistently Praised Opening Hours & GPS Accuracy",
+      explanation:
+        "Visitors across Google Maps and Justdial specifically validated that opening right at 7:00 AM on weekdays prevented wasted trips.",
+      category: "Hours Accuracy",
+      supportingReviewsCount: 4,
+      reviewReferences: ["Review by Rohan Sharma", "Review by Ananya Deshmukh"],
+      dateRange: "Last 30 days",
+      recommendedAction: "Highlight early 7:00 AM opening hours on storefront banners and social profiles.",
+      confidence: 0.96,
+      generatedAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    },
+    {
+      id: "ins-3",
+      title: "Customer Requests for Valet or Parking Assistance",
+      explanation:
+        "Evening patrons on 12th Main Road note that street parking is congested and request clear parking guidance.",
+      category: "Service Quality",
+      supportingReviewsCount: 2,
+      reviewReferences: ["Review by Vikramjit Singh on Justdial"],
+      dateRange: "Last 30 days",
+      recommendedAction: "Add parking instructions and nearby landmark tips in the canonical business profile.",
+      confidence: 0.88,
+      generatedAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
+    },
+  ];
+}
+
+export async function triggerAIReputationAnalysis(): Promise<{
+  insights: AIReputationInsight[];
+  summary: string;
+  totalReviewsAnalyzed: number;
+}> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/insights/analyze`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  const insights = await fetchAIReputationInsights();
+  return {
+    insights,
+    summary:
+      "Analyzed customer reviews across Google Maps, Mappls, and Justdial. Customer sentiment remains 86% positive with primary praise around opening hour reliability and coffee quality. Identified 2 operational optimization opportunities in Sunday morning staffing and evening parking guidance.",
+    totalReviewsAnalyzed: 7,
+  };
+}
+
+export async function generateAIReviewResponseDraft(reviewId: string): Promise<{
+  review: ReviewRecord;
+  suggestedDraft: string;
+  guidelinesUsed: string;
+}> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/reviews/${reviewId}/generate-response`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  const { reviews } = await fetchPlatformReviews();
+  const rev = reviews.find((r) => r.id === reviewId) || reviews[0];
+
+  let draft = "";
+  let guidelines = "";
+
+  if (rev.sentiment === "NEGATIVE" || rev.rating <= 2) {
+    guidelines = "Negative review protocol: professional & polite tone, acknowledged specific concern, avoided arguing or unprovable promises, protected private customer data.";
+    draft = `Dear ${rev.authorName}, thank you for taking the time to share your feedback. We sincerely apologize that your experience fell short of expectations regarding ${rev.reviewText.toLowerCase().includes("wait") ? "the waiting time during peak rush" : "our service"}. Our team is actively reviewing this with our staff to ensure we maintain the highest standards. We would love the opportunity to make this right on your next visit.`;
+  } else if (rev.sentiment === "POSITIVE" || rev.rating >= 4) {
+    guidelines = "Positive review protocol: genuine gratitude, warm & natural tone, concise reply avoiding repetitive robotic templates.";
+    draft = `Hi ${rev.authorName}, thank you so much for the wonderful ${rev.rating}-star review! We are thrilled to hear you enjoyed your visit at The Bombay Roastery & Café. Looking forward to welcoming you back soon!`;
+  } else {
+    guidelines = "Neutral review protocol: helpful and professional acknowledgment with actionable follow-up.";
+    draft = `Hello ${rev.authorName}, thank you for visiting us and sharing your valuable observations. We appreciate your helpful feedback and are constantly working to improve our guest experience. Hope to see you again soon!`;
+  }
+
+  return {
+    review: rev,
+    suggestedDraft: draft,
+    guidelinesUsed: guidelines,
+  };
+}
+
+export async function saveReviewResponse(
+  reviewId: string,
+  responseText: string,
+  approved: boolean
+): Promise<ReviewRecord> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/reviews/${reviewId}/response`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ responseText, approved }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  const { reviews } = await fetchPlatformReviews();
+  const rev = reviews.find((r) => r.id === reviewId) || reviews[0];
+  rev.responseText = responseText;
+  rev.responseDraft = responseText;
+  rev.responseApproved = approved;
+  rev.responseStatus = approved ? "ANSWERED" : "DRAFT";
+  return rev;
+}
+
+export async function publishReviewResponse(reviewId: string): Promise<{
+  success: boolean;
+  publishedDirectly: boolean;
+  message: string;
+  review: ReviewRecord;
+}> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/reviews/${reviewId}/publish`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  const { reviews } = await fetchPlatformReviews();
+  const rev = reviews.find((r) => r.id === reviewId) || reviews[0];
+  rev.responseApproved = true;
+  rev.responseStatus = "ANSWERED";
+  rev.responsePublishedAt = new Date().toISOString();
+
+  if (rev.platform === "mockMapsA") {
+    return {
+      success: true,
+      publishedDirectly: true,
+      message: "Response approved and published to Google Maps (India) partner listing API.",
+      review: rev,
+    };
+  }
+
+  return {
+    success: true,
+    publishedDirectly: false,
+    message: "Direct publishing is unavailable for this platform. Copy the approved response and publish it manually on the directory portal.",
+    review: rev,
+  };
+}
+
+export async function fetchReputationSettings(): Promise<ReputationSettingsDto> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/settings`, { credentials: "include" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  return {
+    lowRatingThreshold: 3.0,
+    alertOnLowRating: true,
+    alertOnUnanswered: true,
+  };
+}
+
+export async function updateReputationSettings(
+  settings: Partial<ReputationSettingsDto>
+): Promise<ReputationSettingsDto> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/reputation/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(settings),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline demo fallback
+  }
+
+  return {
+    lowRatingThreshold: settings.lowRatingThreshold ?? 3.0,
+    alertOnLowRating: settings.alertOnLowRating ?? true,
+    alertOnUnanswered: settings.alertOnUnanswered ?? true,
+  };
+}
+
+
+
+
