@@ -22,11 +22,10 @@ import {
   type SubmitReviewResult,
 } from "../lib/api";
 import ThemeTogglerDemo from "../components/ThemeToggler";
-import { focus, muted } from "../lib/styles";
+import { focus } from "../lib/styles";
 
 export default function PublicRating() {
   const [summary, setSummary] = useState<RatingSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Form states
@@ -51,8 +50,8 @@ export default function PublicRating() {
     try {
       const data = await fetchRatingSummary();
       setSummary(data);
-    } finally {
-      setLoading(false);
+    } catch {
+      // ignore
     }
   }
 

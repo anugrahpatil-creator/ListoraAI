@@ -22,7 +22,7 @@ export default function EmbedBadge() {
         target="_blank"
         rel="noopener noreferrer"
         className="group flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-white shadow-xl hover:border-amber-500/50 transition-all text-decoration-none"
-        title={`Verified ${rating} Star Rating on ListoraAI`}
+        title={`${businessName} — Verified ${rating} Star Rating on ListoraAI`}
       >
         <div className="flex flex-col items-center justify-center border-r border-neutral-700/80 pr-3">
           <div className="flex items-center gap-1 text-base font-extrabold text-amber-400">
