@@ -42,7 +42,7 @@ export default function Dashboard() {
           setData((prev) => ({
             ...prev,
             listings: prev.listings.map((l) => {
-              const matched = list.find((p) => p.id === l.platform || p.platformKey === l.platform);
+              const matched = list.find((p: PlatformConnection) => p.id === l.platform || p.platformKey === l.platform);
               if (matched) {
                 return {
                   ...l,

@@ -93,8 +93,8 @@ export default function Profile() {
   };
 
   const { user } = useAuth();
-  // Allow OPERATOR or default session to edit/save canonical profile smoothly
-  const canEdit = !user || user.role === "OPERATOR";
+  // Allow OWNER or default session to edit/save canonical profile smoothly
+  const canEdit = !user || user.role === "OWNER";
 
   const handleReset = async () => {
     if (!canEdit) return;

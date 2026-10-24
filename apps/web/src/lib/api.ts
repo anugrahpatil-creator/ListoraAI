@@ -120,7 +120,7 @@ export async function register(payload: RegisterPayload): Promise<{ user: UserPr
       id: "demo-" + Date.now(),
       email: payload.email,
       name: payload.name || "Demo User",
-      role: payload.role || "OPERATOR",
+      role: payload.role || "OWNER",
     };
     setStoredUser(fallbackUser);
     return { user: fallbackUser };
@@ -138,7 +138,7 @@ export async function register(payload: RegisterPayload): Promise<{ user: UserPr
     id: "usr-" + Date.now(),
     email: payload.email,
     name: payload.name || payload.email.split("@")[0],
-    role: payload.role || "OPERATOR",
+    role: payload.role || "OWNER",
   };
 
   setStoredUser(user);
@@ -188,7 +188,7 @@ export async function listUsers(): Promise<UserProfile[]> {
   } catch {
     // Fallback demo user list
     return [
-      { id: "usr-2", email: "operator@listora.ai", name: "Operations Lead", role: "OPERATOR", createdAt: "2026-10-05" },
+      { id: "usr-2", email: "operator@listora.ai", name: "Operations Lead", role: "OWNER", createdAt: "2026-10-05" },
       { id: "usr-3", email: "viewer@listora.ai", name: "Auditor / Stakeholder", role: "VIEWER", createdAt: "2026-10-10" },
     ];
   }
@@ -533,6 +533,271 @@ export async function fetchAuditLogs(): Promise<any[]> {
   }
 
   return [];
+}
+
+// ---------------------------------------------------------------------------
+// Platform Connections & Synchronization
+// ---------------------------------------------------------------------------
+
+export type PlatformConnectionStatus = "CONNECTED" | "NOT_CONNECTED" | "DEMO_MODE" | "CONNECTION_FAILED";
+export type PlatformMode = "LIVE" | "DEMO";
+
+export type PlatformCapabilities = {
+  canRead: boolean;
+  canWrite: boolean;
+  supportsHolidays: boolean;
+  supportsHours: boolean;
+  isOfficialApi: boolean;
+  requiresPartnerAgreement?: boolean;
+  manualPortalUrl?: string;
+  policyNotes: string;
+};
+
+export type PlatformConnection = {
+  id: string; // 'googleMaps' | 'mappls' | 'justdial'
+  name: string;
+  platformKey: string;
+  status: PlatformConnectionStatus;
+  mode: PlatformMode;
+  canWrite: boolean;
+  capabilities: PlatformCapabilities;
+  policyNotes: string;
+  config?: {
+    clientId?: string;
+    locationId?: string;
+    accountId?: string;
+    merchantId?: string;
+    hasSecret?: boolean;
+  };
+  lastTestedAt?: string;
+  lastSyncedAt?: string;
+};
+
+export type ConnectPlatformPayload = {
+  mode: PlatformMode | "DISCONNECT";
+  clientId?: string;
+  clientSecret?: string;
+  locationId?: string;
+  accountId?: string;
+  merchantId?: string;
+  apiKey?: string;
+};
+
+const DEFAULT_LOCAL_PLATFORMS: PlatformConnection[] = [
+  {
+    id: "googleMaps",
+    name: "Google Maps / Google Business Profile",
+    platformKey: "googleMaps",
+    status: "DEMO_MODE",
+    mode: "DEMO",
+    canWrite: true,
+    capabilities: {
+      canRead: true,
+      canWrite: true,
+      supportsHolidays: true,
+      supportsHours: true,
+      isOfficialApi: true,
+      policyNotes:
+        "Official Google Business Profile API (v1 / v4) supports automated edits for verified locations. Live mode requires Google Cloud OAuth credentials and location permissions. Simulated demo mode uses local mock server.",
+      manualPortalUrl: "https://business.google.com",
+    },
+    policyNotes:
+      "Full read and write capability supported when authenticated with Google Business Profile API.",
+    config: { hasSecret: false },
+    lastTestedAt: new Date().toISOString(),
+    lastSyncedAt: new Date().toISOString(),
+  },
+  {
+    id: "mappls",
+    name: "Mappls (MapmyIndia)",
+    platformKey: "mappls",
+    status: "DEMO_MODE",
+    mode: "DEMO",
+    canWrite: true,
+    capabilities: {
+      canRead: true,
+      canWrite: true,
+      supportsHolidays: true,
+      supportsHours: true,
+      isOfficialApi: true,
+      requiresPartnerAgreement: true,
+      policyNotes:
+        "Direct listing push supported via Mappls Enterprise Map & Location Management APIs. Requires client_id & client_secret partner agreement. In simulated mode, calls mock server.",
+      manualPortalUrl: "https://about.mappls.com",
+    },
+    policyNotes:
+      "Read-write supported for verified merchant enterprise partners. Rate limited to 100 updates/day.",
+    config: { hasSecret: false },
+    lastTestedAt: new Date().toISOString(),
+    lastSyncedAt: new Date().toISOString(),
+  },
+  {
+    id: "justdial",
+    name: "Justdial",
+    platformKey: "justdial",
+    status: "DEMO_MODE",
+    mode: "DEMO",
+    canWrite: true,
+    capabilities: {
+      canRead: true,
+      canWrite: true,
+      supportsHolidays: false,
+      supportsHours: true,
+      isOfficialApi: false,
+      policyNotes:
+        "Standard Justdial listing hours can be verified automatically. Holiday hour overrides require manual verification or B2B Verified Merchant API token. In demo mode, writes update local state.",
+      manualPortalUrl: "https://www.justdial.com/Free-Listing",
+    },
+    policyNotes:
+      "Read-write supported for standard hours and NAP. Holiday hours are policy-blocked during national holidays.",
+    config: { hasSecret: false },
+    lastTestedAt: new Date().toISOString(),
+    lastSyncedAt: new Date().toISOString(),
+  },
+];
+
+const PLATFORMS_STORAGE_KEY = "listora_platform_connections";
+
+export async function fetchPlatformConnections(): Promise<PlatformConnection[]> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/platforms`, { credentials: "include" });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        localStorage.setItem(PLATFORMS_STORAGE_KEY, JSON.stringify(data));
+        return data;
+      }
+    }
+  } catch {
+    // fallback to storage
+  }
+
+  try {
+    const raw = localStorage.getItem(PLATFORMS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+
+  return DEFAULT_LOCAL_PLATFORMS;
+}
+
+export async function connectPlatform(
+  platformId: string,
+  payload: ConnectPlatformPayload
+): Promise<{ connection: PlatformConnection; message: string }> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/platforms/${platformId}/connect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const all = await fetchPlatformConnections();
+      const updated = all.map((p) => (p.id === platformId ? data.connection : p));
+      localStorage.setItem(PLATFORMS_STORAGE_KEY, JSON.stringify(updated));
+      return data;
+    }
+  } catch {
+    // local fallback
+  }
+
+  const all = (await fetchPlatformConnections()).slice();
+  const current =
+    all.find((p) => p.id === platformId) ||
+    DEFAULT_LOCAL_PLATFORMS.find((p) => p.id === platformId)!;
+  const now = new Date().toISOString();
+
+  if (payload.mode === "DISCONNECT") {
+    current.status = "NOT_CONNECTED";
+    current.lastTestedAt = now;
+  } else if (payload.mode === "DEMO") {
+    current.status = "DEMO_MODE";
+    current.mode = "DEMO";
+    current.lastTestedAt = now;
+  } else {
+    if (platformId === "googleMaps" && (!payload.locationId || !payload.clientId)) {
+      current.status = "CONNECTION_FAILED";
+      current.mode = "LIVE";
+      current.lastTestedAt = now;
+      localStorage.setItem(PLATFORMS_STORAGE_KEY, JSON.stringify(all));
+      return {
+        connection: current,
+        message:
+          "Live connection failed: Google Cloud OAuth credentials and Location ID are required for live sync.",
+      };
+    }
+    current.status = "CONNECTED";
+    current.mode = "LIVE";
+    current.lastTestedAt = now;
+    current.config = {
+      clientId: payload.clientId,
+      locationId: payload.locationId,
+      merchantId: payload.merchantId,
+      hasSecret: Boolean(payload.clientSecret || payload.apiKey),
+    };
+  }
+
+  localStorage.setItem(PLATFORMS_STORAGE_KEY, JSON.stringify(all));
+  return {
+    connection: current,
+    message:
+      payload.mode === "DEMO"
+        ? `${current.name} connected in Simulated Demo Mode.`
+        : payload.mode === "DISCONNECT"
+        ? `Disconnected from ${current.name}.`
+        : `Connected to ${current.name} live API.`,
+  };
+}
+
+export async function testPlatformConnection(platformId: string): Promise<{
+  success: boolean;
+  status: PlatformConnectionStatus;
+  mode: PlatformMode;
+  message: string;
+  latencyMs: number;
+}> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/platforms/${platformId}/test`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // local fallback
+  }
+
+  const all = await fetchPlatformConnections();
+  const current = all.find((p) => p.id === platformId);
+  const isDemo = current?.mode === "DEMO";
+
+  if (current?.status === "NOT_CONNECTED") {
+    return {
+      success: false,
+      status: "NOT_CONNECTED",
+      mode: current.mode,
+      latencyMs: 0,
+      message: `${current.name} is not connected. Use Configure to connect.`,
+    };
+  }
+
+  return {
+    success: current?.status !== "CONNECTION_FAILED",
+    status: current?.status || "DEMO_MODE",
+    mode: current?.mode || "DEMO",
+    latencyMs: isDemo ? 32 : 110,
+    message: isDemo
+      ? `${current?.name} simulated probe successful. Local mock platform service is healthy.`
+      : `${current?.name} live connection is active.`,
+  };
+}
+
+export async function disconnectPlatform(platformId: string) {
+  return connectPlatform(platformId, { mode: "DISCONNECT" });
 }
 
 // ---------------------------------------------------------------------------

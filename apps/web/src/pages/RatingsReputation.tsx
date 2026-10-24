@@ -8,7 +8,6 @@ import {
   AlertCircle,
   ExternalLink,
   Search,
-  Filter,
   CheckCircle2,
   Copy,
   Check,
@@ -17,14 +16,8 @@ import {
   SlidersHorizontal,
   Bot,
   Lock,
-  ArrowUpDown,
-  Building2,
   Info,
   Clock,
-  ThumbsUp,
-  ThumbsDown,
-  HelpCircle,
-  FileText,
 } from "lucide-react";
 import {
   fetchRatingsOverview,
@@ -48,26 +41,22 @@ import { focus, muted, ease } from "../lib/styles";
 export default function RatingsReputation() {
   const currentUser = getStoredUser();
   const isOwner = currentUser?.role === "OWNER";
-  const isViewer = !isOwner;
 
   // Overview Data
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [overview, setOverview] = useState<RatingsOverview | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(true);
 
   // Reviews Data & Filtering
   const [reviews, setReviews] = useState<ReviewRecord[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("ALL");
   const [selectedSentiment, setSelectedSentiment] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [selectedSort, setSelectedSort] = useState<"newest" | "oldest" | "highest" | "lowest">("newest");
-  const [minRatingFilter, setMinRatingFilter] = useState<number | undefined>(undefined);
+  const minRatingFilter: number | undefined = undefined;
 
   // AI Insights
   const [insights, setInsights] = useState<AIReputationInsight[]>([]);
-  const [insightsLoading, setInsightsLoading] = useState(true);
   const [analyzingInsights, setAnalyzingInsights] = useState(false);
   const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
 
@@ -94,12 +83,11 @@ export default function RatingsReputation() {
   useEffect(() => {
     let cancelled = false;
     async function loadOverview() {
-      setOverviewLoading(true);
       try {
         const data = await fetchRatingsOverview(timeRange);
         if (!cancelled) setOverview(data);
-      } finally {
-        if (!cancelled) setOverviewLoading(false);
+      } catch {
+        // ignore
       }
     }
     loadOverview();
@@ -112,7 +100,6 @@ export default function RatingsReputation() {
   useEffect(() => {
     let cancelled = false;
     async function loadReviews() {
-      setReviewsLoading(true);
       try {
         const res = await fetchPlatformReviews({
           platform: selectedPlatform,
@@ -123,8 +110,8 @@ export default function RatingsReputation() {
           minRating: minRatingFilter,
         });
         if (!cancelled) setReviews(res.reviews);
-      } finally {
-        if (!cancelled) setReviewsLoading(false);
+      } catch {
+        // ignore
       }
     }
     loadReviews();
@@ -146,8 +133,8 @@ export default function RatingsReputation() {
           setInsights(ins);
           setSettings(st);
         }
-      } finally {
-        if (!cancelled) setInsightsLoading(false);
+      } catch {
+        // ignore
       }
     }
     loadInitial();
