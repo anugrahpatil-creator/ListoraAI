@@ -61,3 +61,6 @@ apps/api/prisma/migrations/*.sql
 .cache/
 tmp/
 temp/
+*.mp4
+*.webm
+generate_demo_video.py
